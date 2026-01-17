@@ -324,6 +324,14 @@ export default function AdminPage() {
            <Button variant="outline" size="sm" asChild>
              <a href="#/" target="_blank"><MonitorPlay className="w-4 h-4 mr-2"/> 打开大屏端</a>
            </Button>
+           <a
+             href="https://github.com/scavin/lucky"
+             target="_blank"
+             rel="noreferrer"
+             className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+           >
+             GitHub
+           </a>
            <Badge variant={isRolling ? "destructive" : "secondary"}>
              {isRolling ? "抽奖进行中..." : "等待指令"}
            </Badge>

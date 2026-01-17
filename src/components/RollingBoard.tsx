@@ -23,6 +23,7 @@ const generateMockNames = (candidates: any[], count: number) => {
 export default function RollingBoard({ isRolling, candidates, currentWinners }: RollingBoardProps) {
   const [displayNames, setDisplayNames] = useState(generateMockNames(candidates, 12));
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const animationRef = useRef<number>(0);
   const phaseRef = useRef<'idle' | 'accelerating' | 'running' | 'decelerating'>('idle');
   const speedRef = useRef(0);
@@ -150,6 +151,15 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
         };
     }
   }, [showWinners]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    handleFullscreenChange();
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden">
@@ -325,29 +335,31 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
         </AnimatePresence>
       </div>
 
-      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
-        <button
-          type="button"
-          title="全屏显示"
-          onClick={() => {
-            if (document.fullscreenElement) {
-              document.exitFullscreen?.();
-              return;
-            }
-            document.documentElement.requestFullscreen?.();
-          }}
-          className="h-10 w-10 rounded-full bg-white/10 text-white border border-white/20 backdrop-blur hover:bg-white/20 hover:border-white/40 flex items-center justify-center"
-        >
-          <Maximize2 className="h-5 w-5" />
-        </button>
-        <a
-          href="#/admin"
-          title="进入后台管理"
-          className="h-10 w-10 rounded-full bg-white/10 text-white border border-white/20 backdrop-blur hover:bg-white/20 hover:border-white/40 flex items-center justify-center"
-        >
-          <Settings className="h-5 w-5" />
-        </a>
-      </div>
+      {!isFullscreen && (
+        <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
+          <button
+            type="button"
+            title="全屏显示"
+            onClick={() => {
+              if (document.fullscreenElement) {
+                document.exitFullscreen?.();
+                return;
+              }
+              document.documentElement.requestFullscreen?.();
+            }}
+            className="h-10 w-10 rounded-full bg-white/10 text-white border border-white/20 backdrop-blur hover:bg-white/20 hover:border-white/40 flex items-center justify-center"
+          >
+            <Maximize2 className="h-5 w-5" />
+          </button>
+          <a
+            href="#/admin"
+            title="进入后台管理"
+            className="h-10 w-10 rounded-full bg-white/10 text-white border border-white/20 backdrop-blur hover:bg-white/20 hover:border-white/40 flex items-center justify-center"
+          >
+            <Settings className="h-5 w-5" />
+          </a>
+        </div>
+      )}
     </div>
   );
 }
