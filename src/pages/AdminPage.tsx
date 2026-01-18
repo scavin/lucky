@@ -797,6 +797,10 @@ export default function AdminPage() {
                  <p className="text-xs text-muted-foreground">建议设置为复杂的密码以防误入。</p>
                </div>
                <Button onClick={handleSaveSettings} className="w-full">保存设置</Button>
+               <div className="mt-6 p-3 bg-muted/50 rounded-lg border text-xs text-muted-foreground">
+                 <p className="font-medium mb-1">免责声明</p>
+                 <p>本项目仅用于展示 AI 编程效果，开发者不对使用本项目产生的任何后果承担责任。使用者需自行承担使用风险。</p>
+               </div>
             </TabsContent>
           </div>
         </Tabs>
