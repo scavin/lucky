@@ -138,6 +138,10 @@ export default function AdminPage() {
   };
 
   const handleImport = () => {
+    if (!csvText.trim()) {
+      toast.error("请粘贴数据后再点击执行导入");
+      return;
+    }
     const res = importParticipants(csvText, controlledModeUnlocked);
     if (res.success) {
       toast.success(`成功导入 ${res.count} 人`);
