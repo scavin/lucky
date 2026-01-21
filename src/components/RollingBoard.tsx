@@ -114,6 +114,26 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
 
   // 如果动画完全停止且有中奖者，显示中奖者
   const showWinners = !isAnimating && !isRolling && currentWinners.length > 0;
+  const winnerNameClass =
+    currentWinners.length > 40
+      ? "text-lg md:text-xl"
+      : currentWinners.length > 24
+        ? "text-xl md:text-2xl"
+        : currentWinners.length > 12
+          ? "text-2xl md:text-3xl"
+          : "text-4xl md:text-5xl";
+  const winnerCardPadding =
+    currentWinners.length > 40
+      ? "p-4"
+      : currentWinners.length > 24
+        ? "p-5"
+        : "p-8";
+  const winnerCardMinWidth =
+    currentWinners.length > 40
+      ? 140
+      : currentWinners.length > 24
+        ? 160
+        : 220;
 
   // 监听中奖展示，触发撒花特效
   useEffect(() => {
@@ -266,7 +286,7 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full max-w-7xl px-4 flex flex-col items-center gap-8"
+              className="w-full max-w-[90vw] px-4 flex flex-col items-center gap-8"
             >
               {/* Title / Prize Info */}
               <div className="text-center">
@@ -291,7 +311,8 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 1.2 }}
-                      className="flex flex-wrap justify-center gap-6 w-full"
+                      className="grid gap-4 w-full"
+                      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${winnerCardMinWidth}px, 1fr))` }}
                     >
                       {currentWinners.map((winner, idx) => (
                         <motion.div
@@ -299,12 +320,12 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
                           initial={{ opacity: 0, y: 50 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: idx * 0.1, type: "spring" }}
-                          className="relative group w-[280px] md:w-[320px]"
+                          className="relative group"
                         >
                           <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/20 to-red-900/40 blur-xl rounded-full group-hover:blur-2xl transition-all" />
-                          <div className="relative bg-black/40 backdrop-blur-md border border-yellow-500/30 p-8 rounded-xl flex flex-col items-center justify-center text-center hover:border-yellow-500/80 transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)] min-h-[160px]">
+                          <div className={`relative bg-black/40 backdrop-blur-md border border-yellow-500/30 ${winnerCardPadding} rounded-xl flex flex-col items-center justify-center text-center hover:border-yellow-500/80 transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)] min-h-[120px]`}>
                             {/* 仅显示名字，且加大字号 */}
-                            <div className="text-5xl md:text-6xl font-bold text-white font-cinzel drop-shadow-md">{winner.name}</div>
+                            <div className={`${winnerNameClass} font-bold text-white font-cinzel drop-shadow-md leading-tight break-words`}>{winner.name}</div>
                           </div>
                         </motion.div>
                       ))}
