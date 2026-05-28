@@ -79,7 +79,6 @@ export default function AdminPage() {
     logo: settings.logo || '',
     showDept: settings.showDept || false,
     scrollMode: settings.scrollMode || 'none',
-    winnersPerPage: settings.winnersPerPage || 24,
   });
 
   // 当 settings 变化时同步到表单（首次加载或外部变化）
@@ -93,9 +92,8 @@ export default function AdminPage() {
       logo: settings.logo || '',
       showDept: settings.showDept || false,
       scrollMode: settings.scrollMode || 'none',
-      winnersPerPage: settings.winnersPerPage || 24,
     });
-  }, [settings.title, settings.welcomeTitle, settings.welcomeSubtitle, settings.prizePageTitle, settings.password, settings.logo, settings.showDept, settings.scrollMode, settings.winnersPerPage]);
+  }, [settings.title, settings.welcomeTitle, settings.welcomeSubtitle, settings.prizePageTitle, settings.password, settings.logo, settings.showDept, settings.scrollMode]);
 
   // Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -802,6 +800,16 @@ export default function AdminPage() {
                  <Label>奖项页标题</Label>
                  <Input value={settingsForm.prizePageTitle} onChange={e => setSettingsForm({...settingsForm, prizePageTitle: e.target.value})} />
                </div>
+                <div className="flex items-center justify-between border p-3 rounded-lg bg-muted/20">
+                  <div className="space-y-0.5">
+                    <Label>大屏多中奖者自动滚动</Label>
+                    <p className="text-xs text-muted-foreground">如果单轮中奖人数过多导致溢出，大屏端在保持中奖信息置顶的同时，姓名名单会慢慢向上滚动展示。</p>
+                  </div>
+                  <Switch
+                    checked={settingsForm.scrollMode === 'scroll'}
+                    onCheckedChange={checked => setSettingsForm({...settingsForm, scrollMode: checked ? 'scroll' : 'none'})}
+                  />
+                </div>
                <div className="flex items-center justify-between border p-3 rounded-lg bg-muted/20">
                  <div className="space-y-0.5">
                    <Label>显示部门名称</Label>
@@ -812,37 +820,6 @@ export default function AdminPage() {
                    onCheckedChange={checked => setSettingsForm({...settingsForm, showDept: checked})}
                  />
                </div>
-                <div className="space-y-4 border p-4 rounded-xl bg-muted/20">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>大屏多中奖者分页轮播</Label>
-                      <p className="text-xs text-muted-foreground">当中奖人数超出页面范围时，自动进行分页轮播展示，防止底部名单溢出被截断。</p>
-                    </div>
-                    <Switch
-                      checked={settingsForm.scrollMode === 'carousel'}
-                      onCheckedChange={checked => setSettingsForm({...settingsForm, scrollMode: checked ? 'carousel' : 'none'})}
-                    />
-                  </div>
-                  {settingsForm.scrollMode === 'carousel' && (
-                    <div className="space-y-2 pt-2 border-t border-dashed">
-                      <Label>每屏/页最多显示人数</Label>
-                      <Select 
-                        value={String(settingsForm.winnersPerPage)} 
-                        onValueChange={value => setSettingsForm({...settingsForm, winnersPerPage: parseInt(value, 10)})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="选择显示人数" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="12">每页 12 人 (推荐，字号超大清晰)</SelectItem>
-                          <SelectItem value="24">每页 24 人 (标准布局)</SelectItem>
-                          <SelectItem value="36">每页 36 人 (紧凑排版)</SelectItem>
-                          <SelectItem value="48">每页 48 人 (多人数推荐)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
                 <div className="space-y-2">
                   <Label>后台管理密码</Label>
                  <Input value={settingsForm.password} onChange={e => setSettingsForm({...settingsForm, password: e.target.value})} />

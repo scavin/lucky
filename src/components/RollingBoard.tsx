@@ -24,47 +24,85 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
   const [displayNames, setDisplayNames] = useState(generateMockNames(candidates, 12));
   const [isAnimating, setIsAnimating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const animationRef = useRef<number>(0);
   const phaseRef = useRef<'idle' | 'accelerating' | 'running' | 'decelerating'>('idle');
   const speedRef = useRef(0);
   const lastUpdateRef = useRef(0);
   const candidatesRef = useRef(candidates);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { currentPrizeId, prizes, settings, viewMode } = useLotteryStore();
   const currentPrize = prizes.find(p => p.id === currentPrizeId);
   const scrollMode = settings.scrollMode || 'none';
-  const winnersPerPage = settings.winnersPerPage || 24;
 
   // 保持 candidates 引用最新
   useEffect(() => {
     candidatesRef.current = candidates;
   }, [candidates]);
 
-  // 当滚动状态或中奖名单发生改变时重置当前页码
+  // 当滚动状态或中奖名单发生改变时重置滚动位置
   useEffect(() => {
-    setCurrentPageIndex(0);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
   }, [isRolling, currentWinners]);
 
-  // 自动翻页轮播计时器
+  // 自动平缓向上滚动中奖名单（类似电影结尾谢幕名单，防止遮挡且不使用自动翻页）
   useEffect(() => {
     const showWinners = !isAnimating && !isRolling && currentWinners.length > 0;
-    if (!showWinners || scrollMode !== 'carousel') {
-      setCurrentPageIndex(0);
-      return;
-    }
-    const totalPages = Math.ceil(currentWinners.length / winnersPerPage);
-    if (totalPages <= 1) {
-      setCurrentPageIndex(0);
-      return;
-    }
+    const container = scrollContainerRef.current;
+    if (!showWinners || scrollMode !== 'scroll' || !container) return;
 
-    const timer = setInterval(() => {
-      setCurrentPageIndex((prev) => (prev + 1) % totalPages);
-    }, 5000); // 每 5 秒自动平滑翻页
+    let animationId: number;
+    let startTimeoutId: any;
+    let pauseTimeoutId: any;
+    let scrollBackTimeoutId: any;
+    let isPaused = false;
 
-    return () => clearInterval(timer);
-  }, [isAnimating, isRolling, currentWinners, scrollMode, winnersPerPage]);
+    const startScroll = () => {
+      const scroll = () => {
+        if (isPaused) {
+          animationId = requestAnimationFrame(scroll);
+          return;
+        }
+
+        // 如果内容高度没有超出容器高度，则无需滚动
+        if (container.scrollHeight <= container.clientHeight) {
+          return;
+        }
+
+        // 滚动到底部（留有 2 像素偏差）
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
+          isPaused = true;
+          // 停留在底部 3 秒，然后平滑滚回顶部
+          pauseTimeoutId = setTimeout(() => {
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+            // 等待 1.5 秒平滑滚动完成，重新开始滚动
+            scrollBackTimeoutId = setTimeout(() => {
+              isPaused = false;
+            }, 1500);
+          }, 3000);
+        } else {
+          container.scrollTop += 0.8; // 每帧平缓向上移动 0.8 像素，确保字体清晰易读
+        }
+        animationId = requestAnimationFrame(scroll);
+      };
+
+      animationId = requestAnimationFrame(scroll);
+    };
+
+    // 开奖后停留 3 秒再开始滚动，让现场观众看清首屏
+    startTimeoutId = setTimeout(() => {
+      startScroll();
+    }, 3000);
+
+    return () => {
+      clearTimeout(startTimeoutId);
+      clearTimeout(pauseTimeoutId);
+      clearTimeout(scrollBackTimeoutId);
+      cancelAnimationFrame(animationId);
+    };
+  }, [isAnimating, isRolling, currentWinners, scrollMode]);
 
   // 滚动动画逻辑（带加速和减速）
   useEffect(() => {
@@ -142,30 +180,25 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
 
   // 如果动画完全停止且有中奖者，显示中奖者
   const showWinners = !isAnimating && !isRolling && currentWinners.length > 0;
-  
-  const totalPages = Math.ceil(currentWinners.length / winnersPerPage);
-  const activeWinners = (scrollMode === 'carousel' && currentWinners.length > winnersPerPage)
-    ? currentWinners.slice(currentPageIndex * winnersPerPage, (currentPageIndex + 1) * winnersPerPage)
-    : currentWinners;
 
   const winnerNameClass =
-    activeWinners.length > 40
+    currentWinners.length > 40
       ? "text-lg md:text-xl"
-      : activeWinners.length > 24
+      : currentWinners.length > 24
         ? "text-xl md:text-2xl"
-        : activeWinners.length > 12
+        : currentWinners.length > 12
           ? "text-2xl md:text-3xl"
           : "text-4xl md:text-5xl";
   const winnerCardPadding =
-    activeWinners.length > 40
+    currentWinners.length > 40
       ? "p-4"
-      : activeWinners.length > 24
+      : currentWinners.length > 24
         ? "p-5"
         : "p-8";
   const winnerCardMinWidth =
-    activeWinners.length > 40
+    currentWinners.length > 40
       ? 140
-      : activeWinners.length > 24
+      : currentWinners.length > 24
         ? 160
         : 220;
 
@@ -320,37 +353,42 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full max-w-[90vw] px-4 flex flex-col items-center gap-8"
+              className="w-full max-w-[90vw] h-[85vh] px-4 flex flex-col items-center justify-between gap-6"
             >
-              {/* Title / Prize Info */}
-              <div className="text-center">
-                <h2 className="text-gold-400 text-2xl md:text-3xl font-cinzel tracking-widest uppercase mb-2 text-yellow-500 drop-shadow-lg">
+              <style dangerouslySetInnerHTML={{__html: `
+                .no-scrollbar::-webkit-scrollbar {
+                  display: none;
+                }
+              `}} />
+
+              {/* Title / Prize Info (置顶且固定，防止滚动遮挡) */}
+              <div className="text-center shrink-0">
+                <h2 className="text-gold-400 text-xl md:text-2xl font-cinzel tracking-widest uppercase mb-1 text-yellow-500 drop-shadow-lg">
                   {settings.title}
                 </h2>
-                <h1 className="text-5xl md:text-7xl font-cinzel font-black text-white drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]">
+                <h1 className="text-4xl md:text-6xl font-cinzel font-black text-white drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]">
                   {currentPrize?.name || "Ready"}
                 </h1>
-                <div className="mt-4 flex items-center justify-center gap-2 text-white/80">
-                  <span className="text-lg">本轮抽取: <span className="text-yellow-400 font-bold text-2xl">{currentPrize?.count}</span> 人</span>
+                <div className="mt-2 flex items-center justify-center gap-2 text-white/80">
+                  <span className="text-base">本轮抽取: <span className="text-yellow-400 font-bold text-xl">{currentPrize?.count}</span> 人</span>
                 </div>
               </div>
 
-              {/* Rolling Area / Winner Display */}
-              <div className="w-full min-h-[400px] relative flex items-center justify-center perspective-1000">
+              {/* Rolling Area / Winner Display (中奖者列表滚动容器) */}
+              <div 
+                ref={scrollContainerRef}
+                className="w-full flex-1 min-h-0 overflow-y-auto no-scrollbar relative flex items-center justify-center perspective-1000 py-2"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 <AnimatePresence mode="wait">
                   {showWinners ? (
-                    // Winner Display (Flex centered with Page Transition)
-                    <div className="flex flex-col items-center w-full gap-6">
-                      <motion.div
-                        key={`winners-page-${currentPageIndex}`}
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -15 }}
-                        transition={{ duration: 0.5 }}
+                    // Winner Display (Flex centered with smooth auto scroll)
+                    <div className="w-full h-full">
+                      <div
                         className="grid gap-4 w-full"
                         style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${winnerCardMinWidth}px, 1fr))` }}
                       >
-                        {activeWinners.map((winner, idx) => (
+                        {currentWinners.map((winner, idx) => (
                           <motion.div
                             key={winner.id}
                             initial={{ opacity: 0, y: 30 }}
@@ -368,31 +406,7 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
                             </div>
                           </motion.div>
                         ))}
-                      </motion.div>
-
-                      {scrollMode === 'carousel' && totalPages > 1 && (
-                        <div className="flex items-center gap-4 mt-6 z-20">
-                          <div className="px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-mono text-sm tracking-wider shadow-[0_0_15px_rgba(255,215,0,0.1)]">
-                            第 {currentPageIndex + 1} / {totalPages} 页 (共 {currentWinners.length} 人)
-                          </div>
-                          <div className="flex gap-1.5">
-                            {Array.from({ length: totalPages }).map((_, i) => (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => setCurrentPageIndex(i)}
-                                className={cn(
-                                  "w-2.5 h-2.5 rounded-full transition-all duration-300",
-                                  i === currentPageIndex 
-                                    ? "bg-yellow-500 shadow-[0_0_8px_rgba(255,215,0,0.8)] scale-110" 
-                                    : "bg-white/20 hover:bg-white/40"
-                                )}
-                                title={`第 ${i + 1} 页`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ) : (
                     // Rolling State

@@ -84,7 +84,6 @@ export const useLotteryStore = create<LotteryState>()(
         logo: '',
         showDept: false,
         scrollMode: 'none',
-        winnersPerPage: 24,
       },
 
       importParticipants: (csvText: string, includeControlledFields: boolean = false) => {

@@ -29,6 +29,5 @@ export interface Settings {
   prizePageTitle: string;  // 奖项页标题
   logo?: string;  // 公司 logo (base64)
   showDept?: boolean;  // 抽奖及中奖界面是否显示部门选项
-  scrollMode?: 'none' | 'carousel';  // 大屏显示多中奖者时的展示模式
-  winnersPerPage?: number;           // 每屏显示的最多人数
+  scrollMode?: 'none' | 'scroll';  // 大屏显示多中奖者时的展示模式（none 为平铺，scroll 为滚动）
 }
