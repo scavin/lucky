@@ -51,7 +51,7 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
   useEffect(() => {
     const showWinners = !isAnimating && !isRolling && currentWinners.length > 0;
     const container = scrollContainerRef.current;
-    if (!showWinners || scrollMode !== 'scroll' || !container) return;
+    if (!showWinners || !container) return;
 
     let animationId: number;
     let startTimeoutId: any;
