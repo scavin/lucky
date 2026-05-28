@@ -24,6 +24,7 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
   const [displayNames, setDisplayNames] = useState(generateMockNames(candidates, 12));
   const [isAnimating, setIsAnimating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const animationRef = useRef<number>(0);
   const phaseRef = useRef<'idle' | 'accelerating' | 'running' | 'decelerating'>('idle');
   const speedRef = useRef(0);
@@ -32,11 +33,38 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
 
   const { currentPrizeId, prizes, settings, viewMode } = useLotteryStore();
   const currentPrize = prizes.find(p => p.id === currentPrizeId);
+  const scrollMode = settings.scrollMode || 'none';
+  const winnersPerPage = settings.winnersPerPage || 24;
 
   // 保持 candidates 引用最新
   useEffect(() => {
     candidatesRef.current = candidates;
   }, [candidates]);
+
+  // 当滚动状态或中奖名单发生改变时重置当前页码
+  useEffect(() => {
+    setCurrentPageIndex(0);
+  }, [isRolling, currentWinners]);
+
+  // 自动翻页轮播计时器
+  useEffect(() => {
+    const showWinners = !isAnimating && !isRolling && currentWinners.length > 0;
+    if (!showWinners || scrollMode !== 'carousel') {
+      setCurrentPageIndex(0);
+      return;
+    }
+    const totalPages = Math.ceil(currentWinners.length / winnersPerPage);
+    if (totalPages <= 1) {
+      setCurrentPageIndex(0);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCurrentPageIndex((prev) => (prev + 1) % totalPages);
+    }, 5000); // 每 5 秒自动平滑翻页
+
+    return () => clearInterval(timer);
+  }, [isAnimating, isRolling, currentWinners, scrollMode, winnersPerPage]);
 
   // 滚动动画逻辑（带加速和减速）
   useEffect(() => {
@@ -114,24 +142,30 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
 
   // 如果动画完全停止且有中奖者，显示中奖者
   const showWinners = !isAnimating && !isRolling && currentWinners.length > 0;
+  
+  const totalPages = Math.ceil(currentWinners.length / winnersPerPage);
+  const activeWinners = (scrollMode === 'carousel' && currentWinners.length > winnersPerPage)
+    ? currentWinners.slice(currentPageIndex * winnersPerPage, (currentPageIndex + 1) * winnersPerPage)
+    : currentWinners;
+
   const winnerNameClass =
-    currentWinners.length > 40
+    activeWinners.length > 40
       ? "text-lg md:text-xl"
-      : currentWinners.length > 24
+      : activeWinners.length > 24
         ? "text-xl md:text-2xl"
-        : currentWinners.length > 12
+        : activeWinners.length > 12
           ? "text-2xl md:text-3xl"
           : "text-4xl md:text-5xl";
   const winnerCardPadding =
-    currentWinners.length > 40
+    activeWinners.length > 40
       ? "p-4"
-      : currentWinners.length > 24
+      : activeWinners.length > 24
         ? "p-5"
         : "p-8";
   const winnerCardMinWidth =
-    currentWinners.length > 40
+    activeWinners.length > 40
       ? 140
-      : currentWinners.length > 24
+      : activeWinners.length > 24
         ? 160
         : 220;
 
@@ -305,34 +339,61 @@ export default function RollingBoard({ isRolling, candidates, currentWinners }: 
               <div className="w-full min-h-[400px] relative flex items-center justify-center perspective-1000">
                 <AnimatePresence mode="wait">
                   {showWinners ? (
-                    // Winner Display (Flex centered)
-                    <motion.div
-                      key="winners"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 1.2 }}
-                      className="grid gap-4 w-full"
-                      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${winnerCardMinWidth}px, 1fr))` }}
-                    >
-                      {currentWinners.map((winner, idx) => (
-                        <motion.div
-                          key={winner.id}
-                          initial={{ opacity: 0, y: 50 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.1, type: "spring" }}
-                          className="relative group"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/20 to-red-900/40 blur-xl rounded-full group-hover:blur-2xl transition-all" />
-                          <div className={`relative bg-black/40 backdrop-blur-md border border-yellow-500/30 ${winnerCardPadding} rounded-xl flex flex-col items-center justify-center text-center hover:border-yellow-500/80 transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)] min-h-[120px]`}>
-                            {/* 仅显示名字，且加大字号 */}
-                            <div className={`${winnerNameClass} font-bold text-white font-cinzel drop-shadow-md leading-tight break-words`}>{winner.name}</div>
-                            {settings.showDept && winner.dept && (
-                              <div className="text-yellow-400/90 text-sm md:text-base mt-2 font-medium drop-shadow-sm">{winner.dept}</div>
-                            )}
+                    // Winner Display (Flex centered with Page Transition)
+                    <div className="flex flex-col items-center w-full gap-6">
+                      <motion.div
+                        key={`winners-page-${currentPageIndex}`}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.5 }}
+                        className="grid gap-4 w-full"
+                        style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${winnerCardMinWidth}px, 1fr))` }}
+                      >
+                        {activeWinners.map((winner, idx) => (
+                          <motion.div
+                            key={winner.id}
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.05, type: "spring" }}
+                            className="relative group"
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/20 to-red-900/40 blur-xl rounded-full group-hover:blur-2xl transition-all" />
+                            <div className={`relative bg-black/40 backdrop-blur-md border border-yellow-500/30 ${winnerCardPadding} rounded-xl flex flex-col items-center justify-center text-center hover:border-yellow-500/80 transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)] min-h-[120px]`}>
+                              {/* 仅显示名字，且加大字号 */}
+                              <div className={`${winnerNameClass} font-bold text-white font-cinzel drop-shadow-md leading-tight break-words`}>{winner.name}</div>
+                              {settings.showDept && winner.dept && (
+                                <div className="text-yellow-400/90 text-sm md:text-base mt-2 font-medium drop-shadow-sm">{winner.dept}</div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </motion.div>
+
+                      {scrollMode === 'carousel' && totalPages > 1 && (
+                        <div className="flex items-center gap-4 mt-6 z-20">
+                          <div className="px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-mono text-sm tracking-wider shadow-[0_0_15px_rgba(255,215,0,0.1)]">
+                            第 {currentPageIndex + 1} / {totalPages} 页 (共 {currentWinners.length} 人)
                           </div>
-                        </motion.div>
-                      ))}
-                    </motion.div>
+                          <div className="flex gap-1.5">
+                            {Array.from({ length: totalPages }).map((_, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setCurrentPageIndex(i)}
+                                className={cn(
+                                  "w-2.5 h-2.5 rounded-full transition-all duration-300",
+                                  i === currentPageIndex 
+                                    ? "bg-yellow-500 shadow-[0_0_8px_rgba(255,215,0,0.8)] scale-110" 
+                                    : "bg-white/20 hover:bg-white/40"
+                                )}
+                                title={`第 ${i + 1} 页`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     // Rolling State
                     <motion.div 
