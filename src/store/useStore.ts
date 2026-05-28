@@ -39,6 +39,27 @@ interface LotteryState {
   removeParticipant: (id: string) => void;
 }
 
+// 兼容 Unicode 的 Base64 编码与解码函数（用于混淆 LocalStorage 敏感数据，防 F12 窥视）
+const obfuscateData = (str: string): string => {
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => {
+      return String.fromCharCode(parseInt(p1, 16));
+    }));
+  } catch (e) {
+    return str;
+  }
+};
+
+const deobfuscateData = (str: string): string => {
+  try {
+    return decodeURIComponent(Array.prototype.map.call(atob(str), (c) => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+  } catch (e) {
+    return str;
+  }
+};
+
 export const useLotteryStore = create<LotteryState>()(
   persist(
     (set, get) => ({
@@ -217,7 +238,30 @@ export const useLotteryStore = create<LotteryState>()(
     }),
     {
       name: 'lucky-draw-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (name) => {
+          const val = localStorage.getItem(name);
+          if (!val) return null;
+          try {
+            // 平滑兼容历史明文 JSON 结构，避免升级丢失用户已有配置
+            const trimmed = val.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              return val;
+            }
+            return deobfuscateData(val);
+          } catch (e) {
+            return val;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, obfuscateData(value));
+          } catch (e) {
+            localStorage.setItem(name, value);
+          }
+        },
+        removeItem: (name) => localStorage.removeItem(name),
+      })),
     }
   )
 );
